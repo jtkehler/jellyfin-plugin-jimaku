@@ -103,9 +103,21 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
-        // Try to get AniList ID (available when AniList metadata plugin is installed)
-        request.ProviderIds.TryGetValue("AniList", out var anilistIdStr);
-        int.TryParse(anilistIdStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var anilistId);
+        // Try to get AniList ID (available when AniList metadata plugin is installed).
+        // Keys may vary by plugin version — check case-insensitively.
+        int? anilistId = null;
+        foreach (var kvp in request.ProviderIds)
+        {
+            if (string.Equals(kvp.Key, "AniList", StringComparison.OrdinalIgnoreCase))
+            {
+                if (int.TryParse(kvp.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var aid))
+                {
+                    anilistId = aid;
+                }
+
+                break;
+            }
+        }
 
         // Try to get TMDB ID
         var tmdbIdRaw = request.GetProviderId(MetadataProvider.Tmdb);
@@ -113,13 +125,13 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
         _logger.LogInformation(
             "Provider IDs: AniList={AniList} Tmdb={Tmdb} keys=[{Keys}]",
-            anilistIdStr ?? "(null)",
+            anilistId?.ToString(CultureInfo.InvariantCulture) ?? "(null)",
             tmdbIdRaw ?? "(null)",
             string.Join(", ", request.ProviderIds.Keys));
 
         var entries = new List<Entry>();
 
-        if (anilistId > 0)
+        if (anilistId.HasValue && anilistId.Value > 0)
         {
             _logger.LogInformation("Searching by AniList ID: {AniListId}", anilistId);
 
@@ -170,7 +182,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
         if (entries.Count == 0)
         {
-            var query = Path.GetFileNameWithoutExtension(request.MediaPath);
+            var query = BuildSearchQuery(request);
 
             _logger.LogInformation("Searching by query: {Query} (anime=false)", query);
 
@@ -341,6 +353,26 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             IsForced = false,
             IsHearingImpaired = false
         };
+    }
+
+    private static string BuildSearchQuery(SubtitleSearchRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.SeriesName))
+        {
+            return request.SeriesName;
+        }
+
+        var filename = Path.GetFileNameWithoutExtension(request.MediaPath);
+
+        // Strip common release-group and codec tags from bracketed sections
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(
+            filename,
+            @"\[(?:[\w-]+(?:\s+[\w-]+)*)\]\s*",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.None,
+            TimeSpan.FromMilliseconds(200));
+
+        return cleaned.Trim();
     }
 
     internal void ConfigurationChanged(PluginConfiguration configuration)
