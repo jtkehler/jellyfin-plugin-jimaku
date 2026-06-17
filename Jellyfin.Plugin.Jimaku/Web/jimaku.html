@@ -13,6 +13,19 @@
                         <a is="emby-linkbutton" class="button-link" target="_blank" href="https://jimaku.cc/account">Get your API key</a>
                     </div>
                 </div>
+                <h3 class="sectionTitle sectionTitle-cards"><b>Subtitle Filtering</b></h3>
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="preferredkeywords" label="Preferred Keywords" />
+                    <div class="fieldDescription">
+                        Comma-separated keywords to prioritize. Subtitle files containing any of these will be sorted first (e.g. netflix, crunchyroll)
+                    </div>
+                </div>
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="blacklistedterms" label="Blacklisted Terms" />
+                    <div class="fieldDescription">
+                        Comma-separated terms to hide. Subtitle files containing any of these will be excluded from results (e.g. whisper)
+                    </div>
+                </div>
                 <div class="fieldDescription" id="jimakuresponse"></div>
                 <div>
                     <button id="save-button" is="emby-button" type="submit" class="raised button-submit block">

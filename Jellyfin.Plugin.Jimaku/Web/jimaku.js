@@ -12,6 +12,8 @@ export default function (view, params) {
 
         ApiClient.getPluginConfiguration(JimakuConfig.pluginUniqueId).then(function (config) {
             page.querySelector('#apikey').value = config.ApiKey || '';
+            page.querySelector('#preferredkeywords').value = config.PreferredKeywords || '';
+            page.querySelector('#blacklistedterms').value = config.BlacklistedTerms || '';
             if (config.ApiKeyInvalid) {
                 invalidApiKeyWarning.style.display = null;
             }
@@ -50,6 +52,8 @@ export default function (view, params) {
 
                     config.ApiKey = apiKey;
                     config.ApiKeyInvalid = false;
+                    config.PreferredKeywords = form.querySelector('#preferredkeywords').value.trim();
+                    config.BlacklistedTerms = form.querySelector('#blacklistedterms').value.trim();
 
                     ApiClient.updatePluginConfiguration(JimakuConfig.pluginUniqueId, config).then(function (result) {
                         invalidApiKeyWarning.style.display = 'none';

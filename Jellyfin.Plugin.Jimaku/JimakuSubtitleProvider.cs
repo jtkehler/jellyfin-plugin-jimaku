@@ -125,6 +125,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             string.Join(", ", request.ProviderIds.Keys));
 
         var entries = new List<Entry>();
+        var rateLimited = false;
 
         if (anilistId.HasValue && anilistId.Value > 0)
         {
@@ -138,10 +139,14 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             else if (!response.Ok)
             {
                 _logger.LogWarning("AniList search failed: {Code} {Body}", response.Code, response.Body);
+                if (response.Code == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    rateLimited = true;
+                }
             }
         }
 
-        if (entries.Count == 0 && tmdbIdNumeric > 0)
+        if (entries.Count == 0 && !rateLimited && tmdbIdNumeric > 0)
         {
             var isEpisode = request.ContentType == VideoContentType.Episode;
             var tmdbId = isEpisode ? $"tv:{tmdbIdNumeric}" : $"movie:{tmdbIdNumeric}";
@@ -156,10 +161,14 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             else if (!response.Ok)
             {
                 _logger.LogWarning("TMDB search failed (anime=false): {Code} {Body}", response.Code, response.Body);
+                if (response.Code == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    rateLimited = true;
+                }
             }
 
             // Fallback: try anime=true for TMDB IDs that might be anime entries
-            if (entries.Count == 0)
+            if (entries.Count == 0 && !rateLimited)
             {
                 _logger.LogInformation("No results with anime=false, trying anime=true fallback");
 
@@ -171,11 +180,15 @@ public class JimakuSubtitleProvider : ISubtitleProvider
                 else if (!response.Ok)
                 {
                     _logger.LogWarning("TMDB search failed (anime=true): {Code} {Body}", response.Code, response.Body);
+                    if (response.Code == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        rateLimited = true;
+                    }
                 }
             }
         }
 
-        if (entries.Count == 0)
+        if (entries.Count == 0 && !rateLimited)
         {
             var query = BuildSearchQuery(request);
 
@@ -189,10 +202,14 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             else if (!response.Ok)
             {
                 _logger.LogWarning("Query search failed (anime=false): {Code} {Body}", response.Code, response.Body);
+                if (response.Code == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    rateLimited = true;
+                }
             }
 
             // Fallback: try anime=true
-            if (entries.Count == 0)
+            if (entries.Count == 0 && !rateLimited)
             {
                 _logger.LogInformation("No results with anime=false, trying anime=true fallback");
 
@@ -204,6 +221,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
                 else if (!response.Ok)
                 {
                     _logger.LogWarning("Query search failed (anime=true): {Code} {Body}", response.Code, response.Body);
+                    if (response.Code == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        rateLimited = true;
+                    }
                 }
             }
         }
@@ -214,7 +235,11 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
-        // Fetch files for each entry and build subtitle info list
+        // Parse preferred/blacklisted keywords from config
+        var preferredKeywords = ParseKeywordList(config.PreferredKeywords);
+        var blacklistedTerms = ParseKeywordList(config.BlacklistedTerms);
+
+        // Fetch files for the first entry that has results, matching mpv-jimaku behavior
         var results = new List<RemoteSubtitleInfo>();
         foreach (var entry in entries)
         {
@@ -226,16 +251,38 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             if (!filesResponse.Ok || filesResponse.Data is null)
             {
                 _logger.LogWarning("Failed to get files for entry {EntryId}: {Code} {Body}", entry.Id, filesResponse.Code, filesResponse.Body);
+                if (filesResponse.Code == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    break;
+                }
+
                 continue;
             }
 
-            foreach (var file in filesResponse.Data)
-            {
-                if (string.IsNullOrEmpty(file.Url) || string.IsNullOrEmpty(file.Name))
-                {
-                    continue;
-                }
+            var files = filesResponse.Data
+                .Where(f => !string.IsNullOrEmpty(f.Url) && !string.IsNullOrEmpty(f.Name))
+                .ToList();
 
+            // Filter out blacklisted terms
+            if (blacklistedTerms.Count > 0)
+            {
+                var before = files.Count;
+                files = files
+                    .Where(f => !blacklistedTerms.Any(t => f.Name.Contains(t, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                _logger.LogInformation("Blacklist: filtered {Before} -> {After} files", before, files.Count);
+            }
+
+            // Sort preferred keywords first
+            if (preferredKeywords.Count > 0)
+            {
+                files = files
+                    .OrderByDescending(f => preferredKeywords.Any(k => f.Name.Contains(k, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+            }
+
+            foreach (var file in files)
+            {
                 var format = Path.GetExtension(file.Name).TrimStart('.').ToLowerInvariant();
                 if (string.IsNullOrEmpty(format))
                 {
@@ -260,6 +307,8 @@ public class JimakuSubtitleProvider : ISubtitleProvider
                     Forced = false
                 });
             }
+
+            break;
         }
 
         _logger.LogInformation("Returning {Count} subtitle results", results.Count);
@@ -423,6 +472,15 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             TimeSpan.FromMilliseconds(200));
 
         return cleaned.Trim();
+    }
+
+    private static List<string> ParseKeywordList(string input)
+    {
+        return input
+            ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.ToLowerInvariant())
+            .ToList() ?? new List<string>();
     }
 
     internal void ConfigurationChanged(PluginConfiguration configuration)
