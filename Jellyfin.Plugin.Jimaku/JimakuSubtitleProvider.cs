@@ -12,6 +12,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Jimaku.Configuration;
 using Jellyfin.Plugin.Jimaku.Models;
+using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Subtitles;
 using MediaBrowser.Model.Entities;
@@ -28,16 +30,22 @@ public class JimakuSubtitleProvider : ISubtitleProvider
     private const string JimakuLanguage = "jpn";
     private readonly ILogger<JimakuSubtitleProvider> _logger;
     private readonly ConcurrentBag<string> _badSubtitleUrls = new ();
+    private readonly ILibraryManager _libraryManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JimakuSubtitleProvider"/> class.
     /// </summary>
     /// <param name="logger">Instance of the <see cref="ILogger{JimakuSubtitleProvider}"/> interface.</param>
     /// <param name="httpClientFactory">The <see cref="IHttpClientFactory"/> for creating Http Clients.</param>
-    public JimakuSubtitleProvider(ILogger<JimakuSubtitleProvider> logger, IHttpClientFactory httpClientFactory)
+    /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
+    public JimakuSubtitleProvider(
+        ILogger<JimakuSubtitleProvider> logger,
+        IHttpClientFactory httpClientFactory,
+        ILibraryManager libraryManager)
     {
         Instance = this;
         _logger = logger;
+        _libraryManager = libraryManager;
         JimakuRequestHelper.Instance = new JimakuRequestHelper(httpClientFactory);
         _logger.LogInformation("JimakuSubtitleProvider constructed");
     }
@@ -103,23 +111,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
-        // Try to get AniList ID (available when AniList metadata plugin is installed).
-        // Keys may vary by plugin version — check case-insensitively.
-        int? anilistId = null;
-        foreach (var kvp in request.ProviderIds)
-        {
-            if (string.Equals(kvp.Key, "AniList", StringComparison.OrdinalIgnoreCase))
-            {
-                if (int.TryParse(kvp.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var aid))
-                {
-                    anilistId = aid;
-                }
+        // Resolve AniList ID from the request or, for episodes, the parent series.
+        int? anilistId = GetAniListId(request);
 
-                break;
-            }
-        }
-
-        // Try to get TMDB ID
+        // Try to get TMDB ID (available for movies directly; may be absent for episodes).
         var tmdbIdRaw = request.GetProviderId(MetadataProvider.Tmdb);
         long.TryParse(tmdbIdRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out var tmdbIdNumeric);
 
@@ -269,6 +264,61 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
         _logger.LogInformation("Returning {Count} subtitle results", results.Count);
         return results;
+    }
+
+    private int? GetAniListId(SubtitleSearchRequest request)
+    {
+        var direct = TryGetAniListId(request.ProviderIds);
+        if (direct.HasValue)
+        {
+            _logger.LogInformation("Found AniList ID on subtitle request: {AniListId}", direct.Value);
+            return direct;
+        }
+
+        if (request.ContentType == VideoContentType.Episode
+            && !string.IsNullOrEmpty(request.MediaPath)
+            && _libraryManager.FindByPath(request.MediaPath, false) is Episode episode)
+        {
+            var series = episode.Series;
+            if (series is not null)
+            {
+                var seriesAniList = TryGetAniListId(series.ProviderIds);
+                if (seriesAniList.HasValue)
+                {
+                    _logger.LogInformation(
+                        "Found AniList ID on parent series {SeriesName}: {AniListId}",
+                        series.Name,
+                        seriesAniList.Value);
+
+                    return seriesAniList;
+                }
+
+                _logger.LogInformation(
+                    "Parent series {SeriesName} did not have an AniList provider ID",
+                    series.Name);
+            }
+            else
+            {
+                _logger.LogInformation("Episode was found by path, but parent series was null");
+            }
+        }
+
+        _logger.LogInformation("No AniList ID found for subtitle request");
+        return null;
+    }
+
+    private static int? TryGetAniListId(IEnumerable<KeyValuePair<string, string>> providerIds)
+    {
+        foreach (var kvp in providerIds)
+        {
+            if (string.Equals(kvp.Key, "AniList", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(kvp.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var id))
+            {
+                return id;
+            }
+        }
+
+        return null;
     }
 
     private static string BuildSubtitleId(string format, string language, FileEntry file, long entryId)
