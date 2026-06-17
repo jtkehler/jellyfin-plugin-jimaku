@@ -111,6 +111,12 @@ public class JimakuSubtitleProvider : ISubtitleProvider
         var tmdbIdRaw = request.GetProviderId(MetadataProvider.Tmdb);
         long.TryParse(tmdbIdRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out var tmdbIdNumeric);
 
+        _logger.LogInformation(
+            "Provider IDs: AniList={AniList} Tmdb={Tmdb} keys=[{Keys}]",
+            anilistIdStr ?? "(null)",
+            tmdbIdRaw ?? "(null)",
+            string.Join(", ", request.ProviderIds.Keys));
+
         var entries = new List<Entry>();
 
         if (anilistId > 0)
