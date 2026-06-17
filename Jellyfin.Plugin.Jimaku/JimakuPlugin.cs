@@ -22,6 +22,13 @@ public class JimakuPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+
+        ConfigurationChanged += (_, _) =>
+        {
+            JimakuSubtitleProvider.Instance?.ConfigurationChanged(Configuration);
+        };
+
+        JimakuSubtitleProvider.Instance?.ConfigurationChanged(Configuration);
     }
 
     /// <inheritdoc />
