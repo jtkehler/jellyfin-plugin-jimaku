@@ -18,7 +18,7 @@
 
 ## About
 
-This plugin allows you to download anime subtitles from [Jimaku](https://jimaku.cc). Requires a Jimaku API key.
+This plugin allows you to download anime subtitles from [Jimaku](https://jimaku.cc). Requires a Jimaku API key. WARNING this is completely vibe coded, there are probably bugs, use at your own risk etc.
 
 ## Installation
 
