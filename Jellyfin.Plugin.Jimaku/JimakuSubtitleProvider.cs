@@ -27,7 +27,6 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 {
     private readonly ILogger<JimakuSubtitleProvider> _logger;
     private readonly ConcurrentBag<string> _badSubtitleUrls = new ();
-    private PluginConfiguration? _configuration;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JimakuSubtitleProvider"/> class.
@@ -62,7 +61,16 @@ public class JimakuSubtitleProvider : ISubtitleProvider
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (_configuration is null || string.IsNullOrEmpty(_configuration.ApiKey) || _configuration.ApiKeyInvalid)
+        _logger.LogDebug(
+            "Search request: type={ContentType}, path={MediaPath}, language={Language}, automated={IsAutomated}, perfectMatch={IsPerfectMatch}",
+            request.ContentType,
+            request.MediaPath,
+            request.Language,
+            request.IsAutomated,
+            request.IsPerfectMatch);
+
+        var config = JimakuPlugin.Instance?.Configuration;
+        if (config is null || string.IsNullOrEmpty(config.ApiKey) || config.ApiKeyInvalid)
         {
             _logger.LogDebug("API key not configured or invalid, returning empty results");
             return Enumerable.Empty<RemoteSubtitleInfo>();
@@ -294,9 +302,9 @@ public class JimakuSubtitleProvider : ISubtitleProvider
         };
     }
 
-    internal void ConfigurationChanged(PluginConfiguration e)
+    internal void ConfigurationChanged(PluginConfiguration configuration)
     {
-        _configuration = e;
+        // Configuration is read directly from JimakuPlugin.Instance.Configuration on each request.
     }
 
     private sealed class SubtitleIdPayload
