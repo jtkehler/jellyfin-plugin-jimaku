@@ -25,6 +25,7 @@ namespace Jellyfin.Plugin.Jimaku;
 /// </summary>
 public class JimakuSubtitleProvider : ISubtitleProvider
 {
+    private const string JimakuLanguage = "jpn";
     private readonly ILogger<JimakuSubtitleProvider> _logger;
     private readonly ConcurrentBag<string> _badSubtitleUrls = new ();
 
@@ -38,6 +39,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
         Instance = this;
         _logger = logger;
         JimakuRequestHelper.Instance = new JimakuRequestHelper(httpClientFactory);
+        _logger.LogInformation("JimakuSubtitleProvider constructed");
     }
 
     /// <summary>
@@ -59,13 +61,26 @@ public class JimakuSubtitleProvider : ISubtitleProvider
     /// <inheritdoc />
     public async Task<IEnumerable<RemoteSubtitleInfo>> Search(SubtitleSearchRequest request, CancellationToken cancellationToken)
     {
+        try
+        {
+            return await SearchInternal(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Unhandled exception in Jimaku Search");
+            return Enumerable.Empty<RemoteSubtitleInfo>();
+        }
+    }
+
+    private async Task<IEnumerable<RemoteSubtitleInfo>> SearchInternal(SubtitleSearchRequest request, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(request);
 
         _logger.LogInformation(
-            "Search request: type={ContentType}, path={MediaPath}, language={Language}, automated={IsAutomated}, perfectMatch={IsPerfectMatch}",
-            request.ContentType,
-            request.MediaPath,
-            request.Language,
+            "Search: type={ContentType} path={MediaPath} lang={Language} automated={IsAutomated} perfectMatch={IsPerfectMatch}",
+            request.ContentType.ToString(),
+            request.MediaPath ?? "(null)",
+            request.Language ?? "(null)",
             request.IsAutomated,
             request.IsPerfectMatch);
 
@@ -107,6 +122,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             {
                 entries.AddRange(response.Data);
             }
+            else if (!response.Ok)
+            {
+                _logger.LogWarning("AniList search failed: {Code} {Body}", response.Code, response.Body);
+            }
         }
 
         if (entries.Count == 0 && tmdbIdNumeric > 0)
@@ -121,6 +140,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             {
                 entries.AddRange(response.Data);
             }
+            else if (!response.Ok)
+            {
+                _logger.LogWarning("TMDB search failed (anime=false): {Code} {Body}", response.Code, response.Body);
+            }
 
             // Fallback: try anime=true for TMDB IDs that might be anime entries
             if (entries.Count == 0)
@@ -131,6 +154,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
                 if (response.Ok && response.Data is not null)
                 {
                     entries.AddRange(response.Data);
+                }
+                else if (!response.Ok)
+                {
+                    _logger.LogWarning("TMDB search failed (anime=true): {Code} {Body}", response.Code, response.Body);
                 }
             }
         }
@@ -146,6 +173,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             {
                 entries.AddRange(response.Data);
             }
+            else if (!response.Ok)
+            {
+                _logger.LogWarning("Query search failed (anime=false): {Code} {Body}", response.Code, response.Body);
+            }
 
             // Fallback: try anime=true
             if (entries.Count == 0)
@@ -156,6 +187,10 @@ public class JimakuSubtitleProvider : ISubtitleProvider
                 if (response.Ok && response.Data is not null)
                 {
                     entries.AddRange(response.Data);
+                }
+                else if (!response.Ok)
+                {
+                    _logger.LogWarning("Query search failed (anime=true): {Code} {Body}", response.Code, response.Body);
                 }
             }
         }
@@ -177,7 +212,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
             if (!filesResponse.Ok || filesResponse.Data is null)
             {
-                _logger.LogInformation("Failed to get files for entry {EntryId}: {Code}", entry.Id, filesResponse.Code);
+                _logger.LogWarning("Failed to get files for entry {EntryId}: {Code} {Body}", entry.Id, filesResponse.Code, filesResponse.Body);
                 continue;
             }
 
@@ -200,8 +235,8 @@ public class JimakuSubtitleProvider : ISubtitleProvider
                     Comment = entry.Notes,
                     Format = format,
                     ProviderName = Name,
-                    ThreeLetterISOLanguageName = request.Language,
-                    Id = BuildSubtitleId(format, request.Language, file, entry.Id),
+                    ThreeLetterISOLanguageName = JimakuLanguage,
+                    Id = BuildSubtitleId(format, JimakuLanguage, file, entry.Id),
                     Name = file.Name,
                     DateCreated = file.LastModified,
                     IsHashMatch = false,
