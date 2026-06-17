@@ -94,4 +94,25 @@ public static class JimakuApi
 
         return new ApiResponse<IReadOnlyList<FileEntry>>(response, $"entryId: {entryId}");
     }
+
+    /// <summary>
+    /// Validates an API key by making a test request.
+    /// </summary>
+    /// <param name="apiKey">The API key to validate.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>An ApiResponse indicating success or failure.</returns>
+    public static async Task<ApiResponse<object?>> ValidateApiKeyAsync(string apiKey, CancellationToken cancellationToken)
+    {
+        var response = await RequestHandler.SendRequestAsync(
+            "/entries/search?query=test",
+            HttpMethod.Get,
+            null,
+            null,
+            1,
+            cancellationToken,
+            false,
+            apiKey).ConfigureAwait(false);
+
+        return new ApiResponse<object?>(response, "validate key");
+    }
 }

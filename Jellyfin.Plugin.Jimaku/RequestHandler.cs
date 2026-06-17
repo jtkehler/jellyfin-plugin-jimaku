@@ -30,6 +30,7 @@ public static class RequestHandler
     /// <param name="attempt">The request attempt key.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <param name="isFullUrl">The flag to not append baseUrl.</param>
+    /// <param name="apiKeyOverride">Optional API key to use instead of the configured one.</param>
     /// <returns>The response.</returns>
     public static async Task<HttpResponse> SendRequestAsync(
         string endpoint,
@@ -38,11 +39,12 @@ public static class RequestHandler
         Dictionary<string, string>? headers,
         int attempt,
         CancellationToken cancellationToken,
-        bool isFullUrl = false)
+        bool isFullUrl = false,
+        string? apiKeyOverride = null)
     {
         headers ??= new Dictionary<string, string>();
 
-        var apiKey = JimakuPlugin.Instance?.Configuration.ApiKey;
+        var apiKey = apiKeyOverride ?? JimakuPlugin.Instance?.Configuration.ApiKey;
         if (!string.IsNullOrEmpty(apiKey))
         {
             headers.TryAdd("Authorization", apiKey);
@@ -58,13 +60,13 @@ public static class RequestHandler
         {
             var delay = TimeSpan.FromSeconds(Math.Ceiling(retryAfter));
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-            return await SendRequestAsync(endpoint, method, body, headers, attempt + 1, cancellationToken, isFullUrl).ConfigureAwait(false);
+            return await SendRequestAsync(endpoint, method, body, headers, attempt + 1, cancellationToken, isFullUrl, apiKeyOverride).ConfigureAwait(false);
         }
 
         if (response.statusCode == HttpStatusCode.BadGateway && attempt < RetryLimit)
         {
             await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
-            return await SendRequestAsync(endpoint, method, body, headers, attempt + 1, cancellationToken, isFullUrl).ConfigureAwait(false);
+            return await SendRequestAsync(endpoint, method, body, headers, attempt + 1, cancellationToken, isFullUrl, apiKeyOverride).ConfigureAwait(false);
         }
 
         if (!response.headers.TryGetValue("x-reason", out var responseReason))
