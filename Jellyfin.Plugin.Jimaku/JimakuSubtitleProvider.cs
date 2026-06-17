@@ -61,7 +61,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Search request: type={ContentType}, path={MediaPath}, language={Language}, automated={IsAutomated}, perfectMatch={IsPerfectMatch}",
             request.ContentType,
             request.MediaPath,
@@ -72,19 +72,19 @@ public class JimakuSubtitleProvider : ISubtitleProvider
         var config = JimakuPlugin.Instance?.Configuration;
         if (config is null || string.IsNullOrEmpty(config.ApiKey) || config.ApiKeyInvalid)
         {
-            _logger.LogDebug("API key not configured or invalid, returning empty results");
+            _logger.LogInformation("API key not configured or invalid, returning empty results");
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
         if (request.ContentType == VideoContentType.Episode && (!request.IndexNumber.HasValue || !request.ParentIndexNumber.HasValue || string.IsNullOrEmpty(request.SeriesName)))
         {
-            _logger.LogDebug("Episode information missing");
+            _logger.LogInformation("Episode information missing");
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
         if (string.IsNullOrEmpty(request.MediaPath))
         {
-            _logger.LogDebug("Path missing");
+            _logger.LogInformation("Path missing");
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
@@ -100,7 +100,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
         if (anilistId > 0)
         {
-            _logger.LogDebug("Searching by AniList ID: {AniListId}", anilistId);
+            _logger.LogInformation("Searching by AniList ID: {AniListId}", anilistId);
 
             var response = await JimakuApi.SearchEntriesAsync(null, null, anilistId, null, null, null, cancellationToken).ConfigureAwait(false);
             if (response.Ok && response.Data is not null)
@@ -114,7 +114,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             var isEpisode = request.ContentType == VideoContentType.Episode;
             var tmdbId = isEpisode ? $"tv:{tmdbIdNumeric}" : $"movie:{tmdbIdNumeric}";
 
-            _logger.LogDebug("Searching by TMDB ID: {TmdbId} (anime=false)", tmdbId);
+            _logger.LogInformation("Searching by TMDB ID: {TmdbId} (anime=false)", tmdbId);
 
             var response = await JimakuApi.SearchEntriesAsync(null, tmdbId, null, false, null, null, cancellationToken).ConfigureAwait(false);
             if (response.Ok && response.Data is not null)
@@ -125,7 +125,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             // Fallback: try anime=true for TMDB IDs that might be anime entries
             if (entries.Count == 0)
             {
-                _logger.LogDebug("No results with anime=false, trying anime=true fallback");
+                _logger.LogInformation("No results with anime=false, trying anime=true fallback");
 
                 response = await JimakuApi.SearchEntriesAsync(null, tmdbId, null, true, null, null, cancellationToken).ConfigureAwait(false);
                 if (response.Ok && response.Data is not null)
@@ -139,7 +139,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
         {
             var query = Path.GetFileNameWithoutExtension(request.MediaPath);
 
-            _logger.LogDebug("Searching by query: {Query} (anime=false)", query);
+            _logger.LogInformation("Searching by query: {Query} (anime=false)", query);
 
             var response = await JimakuApi.SearchEntriesAsync(query, null, null, false, null, null, cancellationToken).ConfigureAwait(false);
             if (response.Ok && response.Data is not null)
@@ -150,7 +150,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             // Fallback: try anime=true
             if (entries.Count == 0)
             {
-                _logger.LogDebug("No results with anime=false, trying anime=true fallback");
+                _logger.LogInformation("No results with anime=false, trying anime=true fallback");
 
                 response = await JimakuApi.SearchEntriesAsync(query, null, null, true, null, null, cancellationToken).ConfigureAwait(false);
                 if (response.Ok && response.Data is not null)
@@ -162,7 +162,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
         if (entries.Count == 0)
         {
-            _logger.LogDebug("No entries found for {MediaPath}", request.MediaPath);
+            _logger.LogInformation("No entries found for {MediaPath}", request.MediaPath);
             return Enumerable.Empty<RemoteSubtitleInfo>();
         }
 
@@ -177,7 +177,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
 
             if (!filesResponse.Ok || filesResponse.Data is null)
             {
-                _logger.LogDebug("Failed to get files for entry {EntryId}: {Code}", entry.Id, filesResponse.Code);
+                _logger.LogInformation("Failed to get files for entry {EntryId}: {Code}", entry.Id, filesResponse.Code);
                 continue;
             }
 
@@ -214,7 +214,7 @@ public class JimakuSubtitleProvider : ISubtitleProvider
             }
         }
 
-        _logger.LogDebug("Returning {Count} subtitle results", results.Count);
+        _logger.LogInformation("Returning {Count} subtitle results", results.Count);
         return results;
     }
 
