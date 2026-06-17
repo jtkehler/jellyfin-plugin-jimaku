@@ -11,4 +11,6 @@ category: "Subtitles"
 artifacts:
   - "Jellyfin.Plugin.Jimaku.dll"
 changelog: |-
-  - Initial Jimaku plugin scaffold
+  - Initial release of the Jimaku subtitle provider plugin for Jellyfin
+  - Search and download anime subtitles from Jimaku
+  - Configuration UI for API key management

@@ -1,24 +1,24 @@
-<h1 align="center">Jellyfin OpenSubtitles Plugin</h1>
+<h1 align="center">Jellyfin Jimaku Plugin</h1>
 <h3 align="center">Part of the <a href="https://jellyfin.org">Jellyfin Project</a></h3>
 
 <p align="center">
-<img alt="Plugin Banner" src="https://raw.githubusercontent.com/jellyfin/jellyfin-ux/master/plugins/SVG/jellyfin-plugin-opensubtitles.svg?sanitize=true"/>
+<img alt="Plugin Banner" src="https://raw.githubusercontent.com/jellyfin/jellyfin-ux/master/plugins/SVG/jellyfin-plugin-jimaku.svg?sanitize=true"/>
 <br/>
 <br/>
-<a href="https://github.com/jellyfin/jellyfin-plugin-opensubtitles/actions?query=workflow%3A%22Test+Build+Plugin%22">
-<img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/jellyfin/jellyfin-plugin-opensubtitles/Test%20Build%20Plugin.svg">
+<a href="https://github.com/jellyfin/jellyfin-plugin-jimaku/actions/workflows/build.yaml">
+<img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/jellyfin/jellyfin-plugin-jimaku/build.yaml">
 </a>
-<a href="https://github.com/jellyfin/jellyfin-plugin-opensubtitles">
-<img alt="GPLv3 License" src="https://img.shields.io/github/license/jellyfin/jellyfin-plugin-opensubtitles.svg"/>
+<a href="https://github.com/jellyfin/jellyfin-plugin-jimaku">
+<img alt="GPLv3 License" src="https://img.shields.io/github/license/jellyfin/jellyfin-plugin-jimaku.svg"/>
 </a>
-<a href="https://github.com/jellyfin/jellyfin-plugin-opensubtitles/releases">
-<img alt="Current Release" src="https://img.shields.io/github/release/jellyfin/jellyfin-plugin-opensubtitles.svg"/>
+<a href="https://github.com/jellyfin/jellyfin-plugin-jimaku/releases">
+<img alt="Current Release" src="https://img.shields.io/github/release/jellyfin/jellyfin-plugin-jimaku.svg"/>
 </a>
 </p>
 
 ## About
 
-This is a plugin allows you to download subtitles from [Open Subtitles](https://opensubtitles.com) for your media.
+This plugin allows you to download anime subtitles from [Jimaku](https://jimaku.cc). Requires a Jimaku API key.
 
 ## Installation
 
@@ -26,14 +26,14 @@ This is a plugin allows you to download subtitles from [Open Subtitles](https://
 
 ## Build
 
-1. To build this plugin you will need [.Net 8.x](https://dotnet.microsoft.com/download/dotnet/8.0).
+1. To build this plugin you will need [.NET 9.x](https://dotnet.microsoft.com/download/dotnet/9.0).
 
 2. Build plugin with following command
   ```
   dotnet publish --configuration Release --output bin
   ```
 
-3. Place the dll-file in the `plugins/opensubtitles` folder (you might need to create the folders) of your JF install
+3. Place the dll-file in the `plugins/jimaku` folder (you might need to create the folders) of your JF install
 
 ## Releasing
 
