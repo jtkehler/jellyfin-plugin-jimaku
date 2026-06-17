@@ -1,0 +1,25 @@
+<div id="JimakuConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/jimakujs">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="JimakuConfigForm">
+                <div style="display: none;" id="invalidApiKeyWarning" class="padded-left padded-right padded-bottom padded-top emby-select-withcolor">
+                    <h2 style="color: #ff2828; margin: 0;"><strong>Warning!</strong></h2>
+                    <p style="margin: 0;">Your API key appears to be invalid, please update it in order for the plugin to work.</p>
+                </div>
+                <h3 class="sectionTitle sectionTitle-cards"><b>Enter your Jimaku API key below</b></h3>
+                <div class="inputContainer">
+                    <input is="emby-input" type="password" id="apikey" label="API Key" />
+                    <div class="fieldDescription">
+                        <a is="emby-linkbutton" class="button-link" target="_blank" href="https://jimaku.cc/account">Get your API key</a>
+                    </div>
+                </div>
+                <div class="fieldDescription" id="jimakuresponse"></div>
+                <div>
+                    <button id="save-button" is="emby-button" type="submit" class="raised button-submit block">
+                        <span>${Save}</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
